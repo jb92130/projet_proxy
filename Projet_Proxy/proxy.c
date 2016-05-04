@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <netdb.h>
+#include <pthread.h>
 
 
 void printLog(char* str) {
@@ -23,6 +24,12 @@ void printLog(char* str) {
 
 void printError(char* str) {
     printf("::Error:: %s", str);
+}
+
+void operation(void* param) {
+    int sockCliFd = (int) param;
+    printLog("Creating thread for the client\n");
+    
 }
 
 int main (int argc,char *argv[]) {
@@ -76,10 +83,35 @@ int main (int argc,char *argv[]) {
         exit(1);
     }
     
+    printLog("Server operational\n");
+    
     for (;;) {
-            
+        printLog("Waiting client\n");
+        
+        /**
+         * Accepting client 
+         */
+        clilen = sizeof(cli_addr);
+        sockCliFd = accept(sockfd, (struct sockaddr*) &cli_addr, &clilen);
+        
+        if (sockCliFd < 0) {
+            printError("Server : Error accept\n");
+            exit(1);
+        }
+        
+        printLog("New client\n");
+        
+        /**
+         * Multi threading
+         */
+        pthread_t t;
+        
+        if (pthread_create (&t, NULL, (void*) operation, sockCliFd) < 0) {
+            printError("Server : Error thread creation\n");
+            exit (1);
+        }
+        
     }
     
     
 }
-
