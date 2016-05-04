@@ -1,0 +1,303 @@
+/*********************************************************************
+ *                                                                   *
+ * FICHIER: SERVER_TCP                                               *
+ *                                                                   *
+ * DESCRIPTION: Utilisation de TCP socket par une application serveur*
+ *              application client                                   *
+ *                                                                   *
+ * principaux appels (du point de vue serveur) pour un protocole     *
+ * oriente connexion:                                                *
+ *     socket()                                                      *
+ *                                                                   *
+ *     bind()                                                        *
+ *                                                                   *
+ *     listen()                                                      *
+ *                                                                   *
+ *     accept()                                                      *
+ *                                                                   *
+ *     read()                                                        *
+ *                                                                   *
+ *     write()                                                       *
+ *                                                                   *
+ *********************************************************************/
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <netdb.h>
+
+#define BUFSIZE 8000
+
+char * get_host(char * httpRequest){
+    unsigned short i = 0, j = 0;
+    char * buffer = strstr(httpRequest, "Host: " );
+    char * host = (char *)malloc(256 * sizeof(char));
+    while( buffer != NULL && buffer[i] != '\n')
+        i++;
+    for(j = 6; j < i-1; j++)
+        host[j - 6] = buffer[j];
+    host[j-6+1] = '\0';
+    return host;
+}
+
+int openTCP (char* addr) {
+    
+    /**
+     * Déclaration des variables
+     */
+    
+    int sockfd, isHttps = 0;
+    struct sockaddr_in  serv_addr;
+    struct hostent* serv_host;
+    
+    printf("ADDR:%s %d\n", addr, strlen(addr));
+    
+    /*
+     * Ouvrir une socket (a TCP socket)
+     */
+    if ((sockfd = socket(PF_INET, SOCK_STREAM, 0)) <0) {
+        perror("servmulti : Probleme socket\n");
+        exit (2);
+    }
+    
+    char https[strlen(addr)];
+    int find=0;
+    
+    if((strstr(addr, ":443")) != NULL) {
+        isHttps=1;
+        strcpy(https, addr);
+        for (int i=0; i<strlen(addr); ++i) {
+            if (addr[i]==':') {
+                find=1;
+            }
+            if (find) {
+                https[i]='\0';
+            }
+        }
+        addr = https;
+    }
+    
+    /*char* https = strstr(addr, ":443");
+    if (https != NULL) {
+        //addr = strcmp(addr, ":443");
+        printf("LEN: %d", strlen(addr));
+        addr[strlen(addr)-1]='\0';
+    }*/
+    
+    printf("ADDR:%s\n", addr);
+    //printf("HTTPS:%s", https);
+    
+    /*
+     * On récupère l'host
+     */
+    serv_host = gethostbyname(addr);
+    if (serv_host == NULL) {
+        perror("Host introuvable...\n");
+        return -1;
+    }
+    
+    /*
+     * Lier le host à la socket TCP
+     */
+    memset( (char*) &serv_addr,0, sizeof(serv_addr) );
+    serv_addr.sin_family = serv_host->h_addrtype;
+    serv_addr.sin_addr = *(struct in_addr*) serv_host->h_addr_list[0];
+    
+    if (isHttps) {
+        serv_addr.sin_port = htons((ushort) atoi("443"));
+    }
+    else {
+        serv_addr.sin_port = htons((ushort) atoi("80"));
+    }
+    
+    printf("IP Address: %s\n", inet_ntoa(serv_addr.sin_addr));
+    
+    
+    if (connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) < 0) {
+        perror("Server : Error connection to destination\n");
+        return -1;
+    }
+    
+    printf("Server : Connection established...\n");
+    
+    return sockfd;
+}
+
+int str_echo (int sockfd)
+{
+    int nrcv, nsnd = 1;
+    char msg[BUFSIZE];
+    
+    /*    * Attendre  le message envoye par le client
+     */
+    memset( (char*) msg, 0, sizeof(msg) );
+    if ( (nrcv= read ( sockfd, msg, sizeof(msg)-1) ) < 0 )  {
+        perror ("servmulti : : readn error on socket");
+        exit (1);
+    }
+    msg[nrcv]='\0';
+    
+    char* addr_dest = get_host(msg);
+    
+    if (openTCP(addr_dest) < 0) {
+        perror("Erreur lors de l'ouverture de la connexion TCP de la destination...\n");
+        return 0;
+    }
+    
+    
+    //printf("HOST: %s\n", addr_dest);
+    
+    /*printf ("servmulti :message recu=%s du processus %d nrcv = %d \n",msg,getpid(), nrcv);
+    
+    if ( (nsnd = write (sockfd, msg, nrcv) ) <0 ) {
+        printf ("servmulti : writen error on socket");
+        exit (1);
+    }
+    printf ("nsnd = %d \n", nsnd);*/
+    return 0;
+} /* end of function */
+
+
+void usage(){
+    printf("usage : servmulti numero_port_serveur_TCP\n");
+}
+
+
+int main (int argc,char *argv[])
+
+{
+    printf("Launching of proxy...\n");
+    
+    int sockfd, newsockfd;
+    struct sockaddr_in  serv_addr, cli_addr;
+    socklen_t clilen;
+    
+    /* Verifier le nombre de paramËtre en entrÈe */
+    if (argc != 2){
+        usage();
+        exit(1);
+    }
+    
+    /**
+     *
+     *
+     * Configuration socket TCP
+     *
+     *
+     */
+    
+    /*
+     * Ouvrir une socket (a TCP socket)
+     */
+    if ((sockfd = socket(PF_INET, SOCK_STREAM, 0)) <0) {
+        perror("Server : Problem socket\n");
+        exit (2);
+    }
+    
+    /*
+     * Lier l'adresse  locale à la socket TCP
+     */
+    memset( (char*) &serv_addr,0, sizeof(serv_addr) );
+    serv_addr.sin_family = PF_INET;
+    serv_addr.sin_addr.s_addr = htonl (INADDR_ANY);
+    serv_addr.sin_port = htons(atoi(argv[1]));
+    
+    
+    if (bind(sockfd,(struct sockaddr *)&serv_addr, sizeof(serv_addr) ) <0) {
+        perror ("Server : Error bind\n");
+        exit (1);
+    }
+    
+    /* ParamËtrer le nombre de connexion "pending" */
+    if (listen(sockfd, SOMAXCONN) <0) {
+        perror ("Server : Error listen\n");
+        exit (1);
+    }
+    
+    printf("Server : Operationnal (%s).\n", argv[1]);
+    
+    for (;;) {
+        
+        printf("Waiting client...\n");
+        
+        /*
+         * Client TCP
+         */
+            
+        clilen = sizeof(cli_addr);
+        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr,  &clilen);
+        
+        if (newsockfd < 0) {
+            perror("servmulti : erreur accept\n");
+            exit (1);
+        }
+        
+        printf("Nouveau client: %d\n", newsockfd);
+        
+        /**
+         * Init variable pour le traitement de la requete
+         */
+        int destsockfd, nrcv, nsnd;
+        char msg[BUFSIZE];
+        
+        /*
+         * Attendre le message envoye par le client
+         */
+        memset( (char*) msg, 0, sizeof(msg) );
+        if ( (nrcv= read ( newsockfd, msg, sizeof(msg)-1) ) > -1 )  {
+        
+            msg[nrcv]='\0';
+            
+            char* addr_dest = get_host(msg);
+            
+            if ( (destsockfd = openTCP(addr_dest)) > -1) {
+                
+                printf("Send data...\n");
+                
+                if ( (nsnd = write (destsockfd, msg, nrcv) ) > -1 ) {
+                    
+                    if ( (nrcv= read ( destsockfd, msg, sizeof(msg)-1) ) > -1 )  {
+                        
+                        printf("\n\n------------------------\nREPONSE:\n%s\n", msg);
+                        
+                        if ( (nsnd = write (newsockfd, msg, nrcv) ) > -1 ) {
+                            
+                            printf("Ok !\n------------------------\n");
+                            
+                        }
+                    }
+                    
+                }
+                
+            }
+            else perror("Server : Erreur lors de l'ouverture de la connexion TCP de la destination...\n");
+        }
+        else perror ("Server : readn error on socket\n");
+        
+        close(newsockfd);
+        
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
