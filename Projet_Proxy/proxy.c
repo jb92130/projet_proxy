@@ -17,12 +17,12 @@
 #include <netdb.h>
 #include <pthread.h>
 
-#define BUFSIZE 66000
-#define SOMAXCONN 20
+#define BUFSIZE 8000
+//#define SOMAXCONN 20
 
 struct params_thread {
-    int* sockFd;
-    pthread_t threadId;
+    int sockFd;
+    pthread_t* threadId;
     int* counter;
 };
 
@@ -98,8 +98,7 @@ int openTCP (char* addr) {
      */
     serv_host = gethostbyname(addr);
     if (serv_host == NULL) {
-        //perror("Host introuvable...\n");
-        return -1;
+        return -2;
     }
     
     /*
@@ -116,15 +115,14 @@ int openTCP (char* addr) {
         serv_addr.sin_port = htons((ushort) atoi("80"));
     }
     
-    //printf("IP Address: %s\n", inet_ntoa(serv_addr.sin_addr));
+    printf("IP Address: %s\n", inet_ntoa(serv_addr.sin_addr));
     
     
     if (connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) < 0) {
-        //perror("Server : Error connection to destination\n");
         return -1;
     }
     
-    printf("Server : Connection established...\n");
+    printLog("Server : Connection established...\n");
     
     return sockfd;
 }
@@ -136,7 +134,7 @@ void operation(void* params) {
      * Variable declaration
      */
     struct params_thread* pt = (struct params_thread*) params;
-    int sockCliFd = * (pt->sockFd), sockServFd;
+    int sockCliFd = pt->sockFd, sockServFd;
     int nrcv, nsnd;
     char msg[BUFSIZE];
     
@@ -159,6 +157,9 @@ void operation(void* params) {
      * Opening TCP connection
      */
     if ((sockServFd = openTCP(dest_addr)) < 0) {
+        if (sockServFd == -2) {
+            printError("Server : Host introuvable\n");
+        }
         printError("Server : Error opening TCP connection to destination\n");
         err = 1;
     }
@@ -187,7 +188,7 @@ void operation(void* params) {
         err = 1;
     }
     
-    printf("%d", * (pt->sockFd));
+    //printf("%d", pt->sockFd);
     
     printLog("End operation\n");
     
@@ -271,15 +272,15 @@ int main (int argc,char *argv[]) {
         /**
          * Multi threading
          */
-        pthread_t t;
-        struct params_thread pt;
-        pt.sockFd = &sockCliFd;
-        pt.threadId = t;
-        pt.counter = &counter;
+        pthread_t* t = malloc(sizeof(pthread_t));
+        struct params_thread* pt = malloc(sizeof(struct params_thread));
+        pt->sockFd = sockCliFd;
+        pt->threadId = t;
+        pt->counter = &counter;
         
         printLog("Creating thread for the client\n");
         
-        if (pthread_create (&t, NULL, (void*) operation, &pt) < 0) {
+        if (pthread_create (t, NULL, (void*) operation, pt) < 0) {
             printError("Server : Error thread creation\n");
             exit (1);
         }
