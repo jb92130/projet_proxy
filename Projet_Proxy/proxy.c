@@ -286,7 +286,7 @@ int main (int argc,char *argv[]) {
      * Link local address & port to the TCP Socket
      */
     if (bind(sockfd,(struct sockaddr *)&serv_addr, sizeof(serv_addr) ) <0) {
-        printError("Server : Error bind\n");
+        printError("Server : Error bind, port already used\n");
         exit(1);
     }
     
@@ -318,6 +318,13 @@ int main (int argc,char *argv[]) {
         if (err == 0) {
         
             printLog("New client\n");
+            
+            /**
+             *  En attente de libération des threads...
+             */
+            while (counter>10) {
+                sleep(100);
+            }
             
             /**
              * Multi threading
