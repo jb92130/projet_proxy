@@ -18,8 +18,7 @@
 #include <pthread.h>
 
 #define BUFSIZE 20000
-#define LOG_ACTIVATE 0
-//#define SOMAXCONN 20
+#define LOG_ACTIVATE 1
 
 struct params_thread {
     int sockFd;
@@ -99,8 +98,6 @@ int openTCP (char* addr) {
     struct sockaddr_in  serv_addr;
     struct hostent* serv_host;
     
-    //printf("ADDR:%s %d\n", addr, strlen(addr));
-    
     /*
      * Ouvrir une socket (a TCP socket)
      */
@@ -126,16 +123,6 @@ int openTCP (char* addr) {
         addr = https;
     }
     
-    /*char* https = strstr(addr, ":443");
-     if (https != NULL) {
-     //addr = strcmp(addr, ":443");
-     printf("LEN: %d", strlen(addr));
-     addr[strlen(addr)-1]='\0';
-     }*/
-    
-    //printf("ADDR:%s\n", addr);
-    //printf("HTTPS:%s", https);
-    
     /*
      * On récupère l'host
      */
@@ -157,8 +144,6 @@ int openTCP (char* addr) {
     else {
         serv_addr.sin_port = htons((ushort) atoi("80"));
     }
-    
-    //printf("IP Address: %s\n", inet_ntoa(serv_addr.sin_addr));
     
     
     if (connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) < 0) {
@@ -200,7 +185,6 @@ void operation(void* params) {
         request = delete_url(msg);
         nrcv = strlen(request);
         request[nrcv] = '\0';
-        //printf("%d %s", nrcv, request);
         
         /**
          * Opening TCP connection
@@ -231,7 +215,6 @@ void operation(void* params) {
         while (err == 0 && (nrcv = read(sockServFd, msg, sizeof(msg)-1)) > 0) {
             
             msg[nrcv] = '\0';
-            //printf("%d %s", nrcv, msg);
             
             /**
              * Writing to client
@@ -248,8 +231,6 @@ void operation(void* params) {
             err = 1;
         }
     }
-    
-    //printf("%d", pt->sockFd);
     
     printLog("End operation\n");
     
@@ -349,7 +330,7 @@ int main (int argc,char *argv[]) {
             
             printLog("Creating thread for the client\n");
             
-            if (pthread_create (t, NULL, (void*) operation, pt) < 0) {
+            if (pthread_create(t, NULL, (void*) operation, pt) < 0) {
                 printError("Server : Error thread creation\n");
                 exit (1);
             }
