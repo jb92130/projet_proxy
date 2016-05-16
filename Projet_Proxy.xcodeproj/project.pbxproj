@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		3B0557F61CC77E6B008815B9 /* main in Sources */ = {isa = PBXBuildFile; fileRef = 3B0557F51CC77E6B008815B9 /* main */; };
+		3B0AF3E51CE1E10B005FA651 /* test in Sources */ = {isa = PBXBuildFile; fileRef = 3B0AF3E41CE1E10B005FA651 /* test */; };
 		3B698C311CDA342E009FEC73 /* proxy.c in Sources */ = {isa = PBXBuildFile; fileRef = 3B698C301CDA342E009FEC73 /* proxy.c */; };
 /* End PBXBuildFile section */
 
@@ -26,6 +27,7 @@
 /* Begin PBXFileReference section */
 		3B0557F21CC77E6B008815B9 /* Projet_Proxy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Projet_Proxy; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B0557F51CC77E6B008815B9 /* main */ = {isa = PBXFileReference; lastKnownFileType = text; path = main; sourceTree = "<group>"; };
+		3B0AF3E41CE1E10B005FA651 /* test */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = test; sourceTree = "<group>"; };
 		3B698C301CDA342E009FEC73 /* proxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = proxy.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -61,6 +63,7 @@
 			children = (
 				3B698C321CDA364F009FEC73 /* sauv */,
 				3B698C301CDA342E009FEC73 /* proxy.c */,
+				3B0AF3E41CE1E10B005FA651 /* test */,
 			);
 			path = Projet_Proxy;
 			sourceTree = "<group>";
@@ -129,6 +132,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3B0AF3E51CE1E10B005FA651 /* test in Sources */,
 				3B698C311CDA342E009FEC73 /* proxy.c in Sources */,
 				3B0557F61CC77E6B008815B9 /* main in Sources */,
 			);

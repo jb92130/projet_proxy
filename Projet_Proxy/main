@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <netdb.h>
 
-#define BUFSIZE 8000
+#define BUFSIZE 80000
 
 char * get_host(char * httpRequest){
     unsigned short i = 0, j = 0;

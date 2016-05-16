@@ -1,0 +1,63 @@
+//
+//  test.c
+//  Projet_Proxy
+//
+//  Created by Jean-Baptiste Dominguez on 10/05/2016.
+//  Copyright © 2016 Jean-Baptiste Dominguez. All rights reserved.
+//
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <netdb.h>
+#include <pthread.h>
+
+#define BUFSIZE 20000
+
+
+
+int main (int argc,char *argv[]) {
+    
+    char* httpRequest = "GET http://cdn.sstatic.net/Js/stub.en.js?v=f1b75fae2d6c HTTP/1.1";
+    char* newRequest = malloc(sizeof(char)*strlen(httpRequest));
+    
+    /**
+     *  METHOD ... url/path ...
+     */
+    int count = 0, len = 0;
+    int i = 0;
+    int modeDelete = 0;
+    while (httpRequest[i] != '\0') {
+        if (httpRequest[i] == 'h' && httpRequest[i+1] == 't'
+            && httpRequest[i+2] == 't' && httpRequest[i+3] == 'p') {
+            modeDelete = 1;
+        }
+        
+        if (httpRequest[i] == 'H' && httpRequest[i+1] == 'T'
+            && httpRequest[i+2] == 'T' && httpRequest[i+3] == 'P'
+            && httpRequest[i+4] == '/' && httpRequest[i+5] == '1'
+            && httpRequest[i+6] == '.' && httpRequest[i+7] == '1') {
+            
+        }
+        
+        if (httpRequest[i] == '/') {
+            count++;
+            
+            if (count == 3) {
+                modeDelete = 0;
+            }
+        }
+        
+        if (!modeDelete) {
+            //strcpy(newRequest, httpRequest);
+            newRequest[len] = httpRequest[i];
+            len++;
+        }
+        i++;
+    }
+}

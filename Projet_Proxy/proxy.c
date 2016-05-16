@@ -17,7 +17,8 @@
 #include <netdb.h>
 #include <pthread.h>
 
-#define BUFSIZE 8000
+#define BUFSIZE 20000
+#define LOG_ACTIVATE 0
 //#define SOMAXCONN 20
 
 struct params_thread {
@@ -27,14 +28,18 @@ struct params_thread {
 };
 
 void printLog(char* str) {
-    printf("::Log:: %s", str);
+    if (LOG_ACTIVATE) {
+        printf("::Log:: %s", str);
+    }
 }
 
 void printError(char* str) {
-    printf("::Error:: %s", str);
+    if (LOG_ACTIVATE) {
+        printf("::Error:: %s", str);
+    }
 }
 
-char* get_host(char* httpRequest){
+char* get_host(char* httpRequest) {
     unsigned short i = 0, j = 0;
     char* buffer = strstr(httpRequest, "Host: " );
     char* host = (char *)malloc(256 * sizeof(char));
@@ -44,6 +49,44 @@ char* get_host(char* httpRequest){
         host[j - 6] = buffer[j];
     host[j-6+1] = '\0';
     return host;
+}
+
+char* delete_url(char* httpRequest) {
+    char* newRequest = malloc(sizeof(char)*strlen(httpRequest));
+    
+    /**
+     *  METHOD ... url/path ...
+     */
+    int count = 0, len = 0;
+    int i = 0;
+    int modeDelete = 0;
+    int nevermore = 0;
+    while (httpRequest[i] != '\0') {
+        if (nevermore == 0
+            && httpRequest[i] == 'h' && httpRequest[i+1] == 't'
+            && httpRequest[i+2] == 't' && httpRequest[i+3] == 'p') {
+            modeDelete = 1;
+        }
+        
+        if (modeDelete) {
+            nevermore = 1;
+        }
+        
+        if (httpRequest[i] == '/') {
+            count++;
+            
+            if (count == 3) {
+                modeDelete = 0;
+            }
+        }
+        
+        if (!modeDelete) {
+            newRequest[len] = httpRequest[i];
+            len++;
+        }
+        i++;
+    }
+    return newRequest;
 }
 
 int openTCP (char* addr) {
@@ -115,7 +158,7 @@ int openTCP (char* addr) {
         serv_addr.sin_port = htons((ushort) atoi("80"));
     }
     
-    printf("IP Address: %s\n", inet_ntoa(serv_addr.sin_addr));
+    //printf("IP Address: %s\n", inet_ntoa(serv_addr.sin_addr));
     
     
     if (connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) < 0) {
@@ -137,6 +180,8 @@ void operation(void* params) {
     int sockCliFd = pt->sockFd, sockServFd;
     int nrcv, nsnd;
     char msg[BUFSIZE];
+    char* request;
+    int err = 0;
     
     /**
      * msg initialization & reading request on sockCliFd
@@ -144,48 +189,64 @@ void operation(void* params) {
     memset((char*) msg, 0, sizeof(msg));
     if ((nrcv = read(sockCliFd, msg, sizeof(msg)-1)) < 0) {
         printError("Proxy : Error read\n");
-        exit(1);
+        err = 1;
     }
-    msg[nrcv] = '\0';
     
-    printf("%s", msg);
-    
-    char* dest_addr = get_host(msg);
-    int err = 0;
-    
-    /**
-     * Opening TCP connection
-     */
-    if ((sockServFd = openTCP(dest_addr)) < 0) {
-        if (sockServFd == -2) {
-            printError("Server : Host introuvable\n");
+    if (err == 0) {
+        
+        
+        char* dest_addr = get_host(msg);
+        
+        request = delete_url(msg);
+        nrcv = strlen(request);
+        request[nrcv] = '\0';
+        //printf("%d %s", nrcv, request);
+        
+        /**
+         * Opening TCP connection
+         */
+        if ((sockServFd = openTCP(dest_addr)) < 0) {
+            if (sockServFd == -2) {
+                printError("Server : Host introuvable\n");
+            }
+            printError("Server : Error opening TCP connection to destination\n");
+            err = 1;
         }
-        printError("Server : Error opening TCP connection to destination\n");
-        err = 1;
-    }
-    
-    /**
-     * Writing to destination
-     */
-    if (!err && (nsnd = write(sockServFd, msg, nrcv)) < 0) {
-        printError("Server : Error writing to destination\n");
-        err = 1;
-    }
-    
-    /**
-     * Reading from destination
-     */
-    if (!err && (nrcv = read(sockServFd, msg, sizeof(msg)-1)) < 0) {
-        printError("Client : Error reading message from destination\n");
-        err = 1;
-    }
-    
-    /**
-     * Writing to client
-     */
-    if (!err && (nsnd = write(sockCliFd, msg, nrcv)) < 0) {
-        printError("Client : Error writing message to client\n");
-        err = 1;
+        
+        free(dest_addr);
+        
+        /**
+         * Writing to destination
+         */
+        if (err > 0 || (nsnd = write(sockServFd, request, nrcv)) < 0) {
+            printError("Server : Error writing to destination\n");
+            err = 1;
+        }
+        
+        free(request);
+        
+        /**
+         * Reading from destination
+         */
+        while (err == 0 && (nrcv = read(sockServFd, msg, sizeof(msg)-1)) > 0) {
+            
+            msg[nrcv] = '\0';
+            //printf("%d %s", nrcv, msg);
+            
+            /**
+             * Writing to client
+             */
+            if ((nsnd = write(sockCliFd, msg, nrcv)) < 0) {
+                printError("Client : Error writing message to client\n");
+                err = 1;
+            }
+            
+        }
+        
+        if (err == 0 && nrcv == -1) {
+            printError("Client : Error reading message from destination\n");
+            err = 1;
+        }
     }
     
     //printf("%d", pt->sockFd);
@@ -196,7 +257,12 @@ void operation(void* params) {
     
     close(sockServFd);
     close(sockCliFd);
-    pthread_cancel(pt->threadId);
+    
+    pthread_t t = *pt->threadId;
+    free(pt->threadId);
+    free(pt);
+    
+    pthread_cancel(t);
 }
 
 int main (int argc,char *argv[]) {
@@ -252,6 +318,7 @@ int main (int argc,char *argv[]) {
     }
     
     printLog("Server operational\n");
+    int err = 0;
     
     for (;;) {
         printLog("Waiting client\n");
@@ -264,28 +331,31 @@ int main (int argc,char *argv[]) {
         
         if (sockCliFd < 0) {
             printError("Server : Error accept\n");
-            exit(1);
+            err = 1;
         }
         
-        printLog("New client\n");
+        if (err == 0) {
         
-        /**
-         * Multi threading
-         */
-        pthread_t* t = malloc(sizeof(pthread_t));
-        struct params_thread* pt = malloc(sizeof(struct params_thread));
-        pt->sockFd = sockCliFd;
-        pt->threadId = t;
-        pt->counter = &counter;
-        
-        printLog("Creating thread for the client\n");
-        
-        if (pthread_create (t, NULL, (void*) operation, pt) < 0) {
-            printError("Server : Error thread creation\n");
-            exit (1);
+            printLog("New client\n");
+            
+            /**
+             * Multi threading
+             */
+            pthread_t* t = malloc(sizeof(pthread_t));
+            struct params_thread* pt = malloc(sizeof(struct params_thread));
+            pt->sockFd = sockCliFd;
+            pt->threadId = t;
+            pt->counter = &counter;
+            
+            printLog("Creating thread for the client\n");
+            
+            if (pthread_create (t, NULL, (void*) operation, pt) < 0) {
+                printError("Server : Error thread creation\n");
+                exit (1);
+            }
+            
+            counter++;
         }
-        
-        counter++;
     }
     
     
