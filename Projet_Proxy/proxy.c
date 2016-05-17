@@ -5,6 +5,8 @@
 //  Created by Jean-Baptiste Dominguez on 04/05/2016.
 //  Copyright © 2016 Jean-Baptiste Dominguez. All rights reserved.
 //
+// gcc proxy.c -std=c99 -lpthread
+
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -138,11 +140,13 @@ int openTCP (char* addr) {
     serv_addr.sin_family = serv_host->h_addrtype;
     serv_addr.sin_addr = *(struct in_addr*) serv_host->h_addr_list[0];
     
+    printf("serv_host->h_addrtype : %d\n");
+    
     if (isHttps) {
-        serv_addr.sin_port = htons((ushort) atoi("443"));
+        serv_addr.sin_port = htons(atoi("443"));
     }
     else {
-        serv_addr.sin_port = htons((ushort) atoi("80"));
+        serv_addr.sin_port = htons(atoi("80"));
     }
     
     
@@ -322,9 +326,9 @@ int main (int argc,char **argv) {
             /**
              *  En attente de libération des threads...
              */
-            while (counter>10) {
+            /*while (counter>10) {
                 sleep(100);
-            }
+            }*/
             
             /**
              * Multi threading
