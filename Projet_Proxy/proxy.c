@@ -246,7 +246,7 @@ void operation(void* params) {
     pthread_cancel(t);
 }
 
-int main (int argc,char *argv[]) {
+int main (int argc,char **argv) {
     
     printLog("Launching of proxy\n");
     
